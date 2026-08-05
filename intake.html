@@ -33,11 +33,19 @@ h1{font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--rose-d);let
 const cfg=window.APP_CONFIG||{};
 const sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
+(async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  $('status').textContent = session ? ('ログイン中: '+(session.user.email||'')) : '⚠️ 未ログインや。マイページで運営ログインしてからこのページを開き直して';
+})();
 $('run').onclick=async()=>{
   $('run').disabled=true;$('status').textContent='処理中…(画像の数だけ数十秒かかる)';
   try{
     const {data,error}=await sb.functions.invoke('catalog-ingest',{body:{}});
-    if(error)throw error;
+    if(error){
+      let detail='';
+      try{ if(error.context){ const j=await error.context.json(); detail=j.error||JSON.stringify(j);} }catch(_e){}
+      throw new Error(detail||error.message);
+    }
     if(data.error)throw new Error(data.error);
     $('status').textContent=`処理件数：${data.processed}件`;
     $('reportCard').style.display='block';
